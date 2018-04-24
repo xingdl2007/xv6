@@ -13,6 +13,7 @@ struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
+int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
 void
 tvinit(void)
@@ -86,6 +87,28 @@ trap(struct trapframe *tf)
               tf->trapno, cpuid(), tf->eip, rcr2());
       panic("trap");
     }
+
+    if(tf->trapno == T_PGFLT) {
+      char *mem;
+      // fault va
+      uint fva = rcr2();
+      uint va = PGROUNDDOWN(fva);
+
+      mem = kalloc();
+      if(mem != 0) {
+        memset(mem, 0, PGSIZE);
+        if(mappages(myproc()->pgdir, (char*)va, PGSIZE,
+                    V2P(mem), PTE_W|PTE_U) >= 0) {
+          break;
+        }
+        // error conditin
+        cprintf("lazy allocation mappages failed\n");
+        kfree(mem);
+      } else {
+        cprintf("lazy allocation out of memory\n");
+      }
+    }
+
     // In user space, assume process misbehaved.
     cprintf("pid %d %s: trap %d err %d on cpu %d "
             "eip 0x%x addr 0x%x--kill proc\n",
