@@ -104,6 +104,7 @@ extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
 extern int sys_date(void);
+extern int sys_alarm(void);
 
 static const char* const syscall_names[]={
   [SYS_fork]   "fork",
@@ -128,6 +129,7 @@ static const char* const syscall_names[]={
   [SYS_mkdir]  "mkdir",
   [SYS_close]  "close",
   [SYS_date]   "date",
+  [SYS_alarm]  "alarm",
 };
 
 static int (*syscalls[])(void) = {
@@ -153,6 +155,7 @@ static int (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 [SYS_date]    sys_date,
+[SYS_alarm]   sys_alarm,
 };
 
 void
@@ -172,4 +175,22 @@ syscall(void)
   // annoying
   // cprintf("%s -> %d\n", syscall_names[num],
   //        curproc->tf->eax);
+}
+
+void
+alarm (void) {
+  struct proc *curproc = myproc();
+
+  curproc->ticks++;
+  if(curproc->ticks % curproc->alarmticks == 0) {
+    curproc->ticks = 0;
+
+    // arrange tf to call handler
+    curproc->tf->esp -= sizeof(int *);
+
+    // return to original eip
+    *(int *)curproc->tf->esp = curproc->tf->eip;
+    // set eip to handler
+    curproc->tf->eip = (uint)curproc->alarmhandler;
+  }
 }

@@ -56,6 +56,12 @@ trap(struct trapframe *tf)
       release(&tickslock);
     }
     lapiceoi();
+
+    // timer interrupt from user space?
+    if(myproc() != 0  && (tf->cs&3) == 3) {
+      if(myproc()->alarmhandler)
+        alarm();
+    }
     break;
   case T_IRQ0 + IRQ_IDE:
     ideintr();
