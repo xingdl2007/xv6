@@ -185,6 +185,20 @@ alarm (void) {
   if(curproc->ticks % curproc->alarmticks == 0) {
     curproc->ticks = 0;
 
+    // what if we call handler in kernel?
+    // Does not crash, but no print, why?
+    //
+    // In handler, `printf` will call sys_write (a syscall),
+    // which will check whether parameter is valid. If
+    // we call handler here, finally we call sys_write
+    // with invalid parameter, so there is no output.
+    // Paramertera are on user stack, but is ok to call
+    // sys_write in kernel, so no crash!
+    //
+    // Uncomment the following two lines if you want to try.
+    // curproc->alarmhandler();
+    // return;
+
     // arrange tf to call handler
     curproc->tf->esp -= sizeof(int *);
 
